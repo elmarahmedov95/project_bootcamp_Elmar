@@ -5,7 +5,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 start_date = datetime(2026,2,11)
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'airflow', 
     'start_date': start_date,
     'retries': 1,
     'retry_delay': timedelta(seconds=5)
@@ -35,3 +35,4 @@ with DAG('sql_operator_dag',default_args=default_args,schedule='@once',catchup=F
     create_table >> insert_books >> fetch_books
 
     
+
