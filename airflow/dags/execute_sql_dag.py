@@ -33,3 +33,5 @@ with DAG('sql_operator_dag',default_args=default_args,schedule='@once',catchup=F
     )
 
     create_table >> insert_books >> fetch_books
+
+    
