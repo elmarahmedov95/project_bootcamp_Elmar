@@ -17,7 +17,7 @@ with DAG('sql_operator_dag',default_args=default_args,schedule='@once',catchup=F
         conn_id = "postgresql_traindb_conn",
         sql="""create table if not exists 
         public.books(id SERIAL PRIMARY KEY, 
-        name varchar(255));"""
+        name varchar(255));""" 
     )
     insert_books = SQLExecuteQueryOperator(
         task_id = "inset_books"
