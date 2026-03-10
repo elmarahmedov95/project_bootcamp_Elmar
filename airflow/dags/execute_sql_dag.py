@@ -22,7 +22,7 @@ with DAG('sql_operator_dag',default_args=default_args,schedule='@once',catchup=F
     insert_books = SQLExecuteQueryOperator(
         task_id = "inset_books",
         conn_id = "postgresql_traindb_conn",
-        sql = """insert into table public.books(name) values('Great Expectations'), ('Idiot'), ('Father Goriot');"""
+        sql = """insert into public.books(name) values('Great Expectations'), ('Idiot'), ('Father Goriot');"""
     )
 
     fetch_books = SQLExecuteQueryOperator(
