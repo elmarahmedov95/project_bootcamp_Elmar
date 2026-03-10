@@ -20,9 +20,9 @@ with DAG('sql_operator_dag',default_args=default_args,schedule='@once',catchup=F
         name varchar(255));""" 
     )
     insert_books = SQLExecuteQueryOperator(
-        task_id = "inset_books"
-        conn_id = "postgresql_traindb_conn"
-        sql = """insert table public.books values('Great Expectations'), ('Idiot'), ('Father Goriot');"""
+        task_id = "inset_books",
+        conn_id = "postgresql_traindb_conn",
+        sql = """insert into table public.books values('Great Expectations'), ('Idiot'), ('Father Goriot');"""
     )
 
     fetch_books = SQLExecuteQueryOperator(
