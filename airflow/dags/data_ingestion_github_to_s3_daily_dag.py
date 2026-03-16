@@ -76,22 +76,7 @@ def data_ingestion_github_to_s3_daily_dag():
         """
     )
     
-    # Trigger the Spark job after successful data ingestion
-    trigger_spark_job = TriggerDagRunOperator(
-        task_id="trigger_spark_processing",
-        trigger_dag_id="load_facts_to_silver",
-        wait_for_completion=False,
-        reset_dag_run=True,
-        doc="""
-        ## Trigger Spark Processing
-        Triggers the load_facts_to_silver DAG after successful daily data ingestion
-        """
-    )
-    
-    # Set task dependencies
-    ingest_task >> trigger_spark_job
-
-    return [ingest_task, trigger_spark_job]
+    return ingest_task
 
 # Create DAG instance
 dag_instance = data_ingestion_github_to_s3_daily_dag()
