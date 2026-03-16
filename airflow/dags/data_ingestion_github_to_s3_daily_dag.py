@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @dag(
     schedule="@daily",
-    start_date=datetime(2024, 3, 1), 
+    start_date=datetime(2024, 3, 1),
     catchup=False,
     tags=["ingestion", "github", "s3"],
     description="From Github parquet file to S3",
@@ -76,7 +76,22 @@ def data_ingestion_github_to_s3_daily_dag():
         """
     )
     
-    return ingest_task
+    # Trigger the Spark job after successful data ingestion
+    trigger_spark_job = TriggerDagRunOperator(
+        task_id="trigger_spark_processing",
+        trigger_dag_id="load_facts_to_silver",
+        wait_for_completion=False,
+        reset_dag_run=True,
+        doc="""
+        ## Trigger Spark Processing
+        Triggers the load_facts_to_silver DAG after successful daily data ingestion
+        """
+    )
+    
+    # Set task dependencies
+    ingest_task >> trigger_spark_job
+
+    return [ingest_task, trigger_spark_job]
 
 # Create DAG instance
 dag_instance = data_ingestion_github_to_s3_daily_dag()
