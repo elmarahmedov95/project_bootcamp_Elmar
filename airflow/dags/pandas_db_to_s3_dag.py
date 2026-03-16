@@ -57,7 +57,7 @@ def db_to_s3_dag():
             "fs_group": 1000
         },
         doc="""
-        ## Data Ingestion Task
+        ## Data Ingestion Task 
         """
     )
 
