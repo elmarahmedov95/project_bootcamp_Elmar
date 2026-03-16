@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @dag(
     schedule="@daily",
-    start_date=datetime(2024, 3, 1),
+    start_date=datetime(2024, 3, 1), 
     catchup=False,
     tags=["ingestion", "github", "s3"],
     description="From Github parquet file to S3",
