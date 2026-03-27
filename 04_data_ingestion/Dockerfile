@@ -24,8 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY 01_github_to_s3.py 01_github_to_s3.py
-
 COPY 02_github_to_s3_initial_load.py 02_github_to_s3_initial_load.py
+COPY 02_github_to_s3_initial_load_async.py 02_github_to_s3_initial_load_async.py
 
 # Create a non-privileged user and switch to it for security
 RUN adduser --disabled-password --gecos "" appuser && chown -R appuser $APP_HOME
@@ -35,5 +35,4 @@ USER appuser
 EXPOSE 8000
 
 # Define the command to run the app
-# Use gunicorn or uvicorn for production; python app.py for development
 CMD ["python", "01_github_to_s3.py"]
