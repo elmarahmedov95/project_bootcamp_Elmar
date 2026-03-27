@@ -1,0 +1,216 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: load-dimensions
+  namespace: default
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: "data-transformation-spark-iceberg-nessie:1.0"
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///app/load_dimensions/load_dimensions.py
+  sparkVersion: "3.5.3"
+  # Automatically delete the SparkApplication and all its resources after 3600 seconds (1 hour)
+  timeToLiveSeconds: 3600
+  deps:
+    packages:
+      - "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1"
+      - "org.apache.iceberg:iceberg-spark-extensions-3.5_2.12:1.8.1"
+      - "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.102.5"
+      - "org.apache.hadoop:hadoop-aws:3.3.4"
+      - "org.apache.hadoop:hadoop-common:3.3.4"
+    repositories:
+      - "https://repo1.maven.org/maven2"
+  sparkConf:
+    # Automatically delete driver pod on termination
+    "spark.kubernetes.driver.deleteOnTermination": "true"
+    # Automatically delete executor pods on termination
+    "spark.kubernetes.executor.deleteOnTermination": "true"
+    # Application timeout settings
+    "spark.sql.execution.timeout": "3600s"  # 1 hour max for SQL operations
+    "spark.network.timeout": "800s"        # Network timeout
+    "spark.executor.heartbeatInterval": "20s"  # Executor heartbeat
+    "spark.sql.adaptive.advisoryPartitionSizeInBytes": "128MB"  # Optimize partitions
+    "spark.sql.catalog.nessie": "org.apache.iceberg.spark.SparkCatalog"
+    "spark.sql.catalog.nessie.catalog-impl": "org.apache.iceberg.nessie.NessieCatalog"
+    "spark.sql.catalog.standardized.io-impl": "org.apache.iceberg.aws.s3.S3FileIO"
+    "spark.sql.catalog.standardized": "org.apache.iceberg.spark.SparkCatalog"
+    "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    "spark.sql.catalog.nessie.uri": "http://nessie.nessie.svc.cluster.local:19120/api/v2"
+    "spark.sql.catalog.nessie.warehouse": "s3a://warehouse/"
+    "spark.sql.catalog.nessie.s3.endpoint": "http://rustfs-svc.rustfs.svc.cluster.local:9000"
+    "spark.sql.catalog.nessie.ref": "main"
+    "spark.sql.catalog.nessie.authentication.type": "NONE"
+    "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,org.projectnessie.spark.extensions.NessieSparkSessionExtensions"
+    "spark.hadoop.fs.s3a.access.key": "rustfsadmin"
+    "spark.hadoop.fs.s3a.secret.key": "rustfsadmin"
+    "spark.hadoop.fs.s3a.endpoint": "http://rustfs-svc.rustfs.svc.cluster.local:9000"
+    "spark.hadoop.fs.s3a.path.style.access": "true"
+    "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
+    "spark.hadoop.fs.s3a.attempts.maximum": "1"
+    "spark.hadoop.fs.s3a.connection.establish.timeout": "5000"
+    "spark.hadoop.fs.s3a.connection.timeout": "10000"
+    "spark.jars.ivy": "/tmp/.ivy2"
+  # Arguments will be provided by the DAG at runtime
+  arguments:
+    - "--source_bucket"
+    - "{{ var.value.source_bronze_bucket | default('bronze') }}"
+    - "--namespace"
+    - "{{ var.value.silver_namespace | default('nessie.silver') }}"
+    - "--static_bronze_path"
+    - "{{ var.value.static_bronze_path | default('nyc-taxi-data') }}"
+    - "--dimtime_start_date"
+    - "{{ params.dimtime_start_date if params.dimtime_start_date else macros.ds_add(ds, -1) }}"
+    - "--dimtime_end_date"  
+    - "{{ params.dimtime_end_date if params.dimtime_end_date else macros.ds_add(ds, -1) }}"
+    - "--data_year_offset"
+    - "{{ params.data_year_offset if params.data_year_offset else var.value.data_year_offset | default('2') }}"  # Falls back to fixed offset for 2026->2024
+    - "--overwride_mode"
+    - "{{ var.value.fact_trip_overwrite_mode | default('append') }}"
+    - "--access_key_id"
+    - "{{ var.value.aws_access_key_id | default('rustfsadmin') }}"
+    - "--secret_key"
+    - "{{ var.value.aws_secret_access_key | default('rustfsadmin') }}"
+  driver:
+    cores: 2
+    coreLimit: "2000m"
+    memory: "2048m"
+    labels:
+      version: 3.5.3
+    serviceAccount: spark
+    volumeMounts:
+      - name: ivy-cache
+        mountPath: /tmp/.ivy2
+    env:
+      # ==========================================
+      # CONFIGMAPS: Non-sensitive configurations
+      # ==========================================
+      - name: SOURCE_BRONZE_BUCKET
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: bronze-bucket-name
+            
+      - name: SILVER_NAMESPACE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: silver-namespace
+
+      - name: STATIC_BRONZE_PATH
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: static-bronze-path
+
+      - name: DIM_TIME_START_DATE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: dim-time-start-date
+
+      - name: DIM_TIME_END_DATE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: dim-time-end-date
+
+      - name: DATA_YEAR_OFFSET
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: data-year-offset
+
+      - name: FACT_TRIP_OVERWRITE_MODE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: fact-trip-overwrite-mode
+
+      # ==========================================
+      # SECRETS: Sensitive credentials
+      # ==========================================
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: silver-transformations-secret
+            key: access-key-id
+            
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: silver-transformations-secret
+            key: secret-key
+  executor:
+    cores: 2
+    instances: 2
+    memory: "2048m"
+    labels:
+      version: 3.5.3
+    volumeMounts:
+      - name: ivy-cache
+        mountPath: /tmp/.ivy2
+    env:
+      # ==========================================
+      # CONFIGMAPS: Non-sensitive configurations
+      # ==========================================
+      - name: SOURCE_BRONZE_BUCKET
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: bronze-bucket-name
+            
+      - name: SILVER_NAMESPACE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: silver-namespace
+
+      - name: STATIC_BRONZE_PATH
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: static-bronze-path
+
+      - name: DIM_TIME_START_DATE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: dim-time-start-date
+
+      - name: DIM_TIME_END_DATE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: dim-time-end-date
+
+      - name: DATA_YEAR_OFFSET
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: data-year-offset
+
+      - name: FACT_TRIP_OVERWRITE_MODE
+        valueFrom:
+          configMapKeyRef:
+            name: silver-transformations-configmap
+            key: fact-trip-overwrite-mode
+
+      # ==========================================
+      # SECRETS: Sensitive credentials
+      # ==========================================
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: silver-transformations-secret
+            key: access-key-id
+            
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: silver-transformations-secret
+            key: secret-key
+  volumes:
+    - name: ivy-cache
+      emptyDir: {}
