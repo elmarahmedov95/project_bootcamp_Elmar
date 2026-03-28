@@ -1,2 +1,6 @@
 boto3
 requests
+aiohttp>=3.9.0
+aioboto3
+python-dateutil
+async-timeout>=4.0.3
