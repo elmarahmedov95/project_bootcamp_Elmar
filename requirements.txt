@@ -5,3 +5,8 @@ psycopg2-binary
 pandas
 pyarrow
 apache-airflow-providers-cncf-kubernetes
+pyspark==3.5.3
+aiohttp
+aioboto3
+python-dateutil
+requests
