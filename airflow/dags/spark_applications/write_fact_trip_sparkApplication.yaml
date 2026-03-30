@@ -75,9 +75,9 @@ spec:
     - "--secret_key"
     - "{{ var.value.aws_secret_access_key | default('rustfsadmin') }}"
   driver:
-    cores: 2
-    coreLimit: "2000m"
-    memory: "2048m"
+    cores: 1
+    coreLimit: "1000m"
+    memory: "1024m"
     labels:
       version: 3.5.3
     serviceAccount: spark
@@ -145,9 +145,9 @@ spec:
             name: silver-transformations-secret
             key: secret-key
   executor:
-    cores: 2
-    instances: 2
-    memory: "2048m"
+    cores: 1
+    instances: 1
+    memory: "1024m"
     labels:
       version: 3.5.3
     volumeMounts:
