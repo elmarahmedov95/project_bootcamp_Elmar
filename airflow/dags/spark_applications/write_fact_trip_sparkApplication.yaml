@@ -76,8 +76,8 @@ spec:
     - "{{ var.value.aws_secret_access_key | default('rustfsadmin') }}"
   driver:
     cores: 1
-    coreLimit: "1000m"
-    memory: "1024m"
+    coreLimit: "500m"
+    memory: "512m"
     labels:
       version: 3.5.3
     serviceAccount: spark
@@ -147,7 +147,7 @@ spec:
   executor:
     cores: 1
     instances: 1
-    memory: "1024m"
+    memory: "512m"
     labels:
       version: 3.5.3
     volumeMounts:
